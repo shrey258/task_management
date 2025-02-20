@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: task-management-backend
+    env: go
+    buildCommand: go build -o main ./cmd/main.go
+    startCommand: ./main
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true

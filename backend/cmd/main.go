@@ -54,6 +54,14 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 
+	// Health check endpoint
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status": "healthy",
+			"message": "Server is running",
+		})
+	})
+
 	// Setup routes
 	setupRoutes(app, hub, gemini)
 
@@ -83,11 +91,6 @@ func setupRoutes(app *fiber.App, hub *ws.Hub, gemini *ai.GeminiService) {
 		log.Fatalf("Failed to initialize chat handler: %v", err)
 	}
 	log.Println("Chat handler initialized successfully")
-
-	// Health check
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendString("OK")
-	})
 
 	// Auth routes
 	auth := app.Group("/auth")
