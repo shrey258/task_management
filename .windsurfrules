@@ -1,0 +1,8 @@
+1. Use MongoDB as the database.
+2. Backend in Golang (Gin/Fiber)
+3. Frontend in TypeScript (Next.js + Tailwind CSS)
+4. JWT authentication for user sessions.
+5. Goroutines & WebSockets for real-time task updates.
+6. Use Gemini API for chatbot development.
+7. First finish the project, then add deployment steps.
+8. This is a Windows machine.
