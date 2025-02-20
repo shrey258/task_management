@@ -65,14 +65,19 @@ func main() {
 	// Setup routes
 	setupRoutes(app, hub, gemini)
 
-	// Start server
+	// Get port from environment variable
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
+	// Log the port we're using
 	log.Printf("Server starting on port %s", port)
-	log.Fatal(app.Listen(":" + port))
+
+	// Start server with host "0.0.0.0" to listen on all interfaces
+	if err := app.Listen("0.0.0.0:" + port); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }
 
 func setupRoutes(app *fiber.App, hub *ws.Hub, gemini *ai.GeminiService) {
