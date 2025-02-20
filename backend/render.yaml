@@ -2,8 +2,9 @@ services:
   - type: web
     name: task-management-backend
     env: go
-    buildCommand: go build -o main ./cmd/main.go
-    startCommand: ./main
+    region: singapore
+    buildCommand: cd backend && go build -o app ./cmd/main.go
+    startCommand: ./backend/app
     envVars:
       - key: PORT
         value: 8080

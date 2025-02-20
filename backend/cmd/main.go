@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/websocket/v2"
 	"github.com/joho/godotenv"
 	"github.com/shrey258/task_management/internal/ai"
@@ -19,7 +21,7 @@ import (
 func main() {
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found")
+		log.Printf("Warning: .env file not found, using system environment variables")
 	}
 
 	// Connect to MongoDB
@@ -35,20 +37,20 @@ func main() {
 	}
 	defer gemini.Close()
 
-	// Create Fiber app
+	// Create Fiber app with custom config
 	app := fiber.New(fiber.Config{
 		AppName: "Task Management API",
 	})
 
-	// Setup CORS
+	// Add logger middleware
+	app.Use(logger.New())
+
+	// Configure CORS
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: os.Getenv("FRONTEND_URL"),
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowMethods: "GET, POST, PUT, DELETE",
 	}))
-
-	// Add logger middleware
-	app.Use(middleware.Logger())
 
 	// Initialize WebSocket hub
 	hub := ws.NewHub()
@@ -71,12 +73,15 @@ func main() {
 		port = "8080"
 	}
 
-	// Log the port we're using
-	log.Printf("Server starting on port %s", port)
+	// Log startup information
+	log.Printf("Starting server on port %s", port)
+	log.Printf("Environment: %s", os.Getenv("GO_ENV"))
+	log.Printf("MongoDB URI: %s", os.Getenv("MONGODB_URI"))
 
-	// Start server with host "0.0.0.0" to listen on all interfaces
-	if err := app.Listen("0.0.0.0:" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	// Start server with explicit host and port
+	addr := fmt.Sprintf("0.0.0.0:%s", port)
+	if err := app.Listen(addr); err != nil {
+		log.Fatalf("Error starting server: %v", err)
 	}
 }
 
@@ -93,9 +98,8 @@ func setupRoutes(app *fiber.App, hub *ws.Hub, gemini *ai.GeminiService) {
 	log.Println("Initializing chat handler...")
 	chatHandler, err := handlers.NewChatHandler()
 	if err != nil {
-		log.Fatalf("Failed to initialize chat handler: %v", err)
+		log.Printf("Warning: Failed to initialize chat handler: %v", err)
 	}
-	log.Println("Chat handler initialized successfully")
 
 	// Auth routes
 	auth := app.Group("/auth")
@@ -103,13 +107,13 @@ func setupRoutes(app *fiber.App, hub *ws.Hub, gemini *ai.GeminiService) {
 	auth.Post("/login", authHandler.Login)
 
 	// Protected routes
-	api := app.Group("/api", middleware.Protected())
+	protected := app.Group("/api", middleware.Protected())
 	
 	// User routes
-	api.Get("/user", authHandler.GetCurrentUser)
+	protected.Get("/user", authHandler.GetCurrentUser)
 
 	// Task routes
-	tasks := api.Group("/tasks")
+	tasks := protected.Group("/tasks")
 	tasks.Post("/", taskHandler.CreateTask)
 	tasks.Get("/", taskHandler.GetTasks)
 	tasks.Get("/:id", taskHandler.GetTask)
@@ -117,12 +121,14 @@ func setupRoutes(app *fiber.App, hub *ws.Hub, gemini *ai.GeminiService) {
 	tasks.Delete("/:id", taskHandler.DeleteTask)
 
 	// AI routes
-	ai := api.Group("/ai")
+	ai := protected.Group("/ai")
 	ai.Post("/suggest", aiHandler.GenerateTaskSuggestions)
 	ai.Post("/analyze", aiHandler.AnalyzeTask)
 
 	// Chat route
-	api.Post("/chat", chatHandler.HandleChat)
+	if chatHandler != nil {
+		protected.Post("/chat", chatHandler.HandleChat)
+	}
 
 	// WebSocket route
 	app.Use("/ws", wsHandler.UpgradeConnection)
